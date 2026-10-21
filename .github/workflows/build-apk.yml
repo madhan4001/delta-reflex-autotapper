@@ -32,29 +32,23 @@ jobs:
       - name: Build Android APK
         run: gradle assembleDebug
 
-      - name: Inspect APK signing and package
+      - name: Inspect APK signature and permissions
         run: |
           APK="app/build/outputs/apk/debug/app-debug.apk"
-          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
 
-          if [ ! -f "$APKSIGNER" ]; then
-            echo "apksigner was not found at the expected path."
-            find "$ANDROID_HOME/build-tools" -name apksigner -type f
-            exit 1
-          fi
+          test -n "$APKSIGNER"
+          test -n "$AAPT"
 
-          echo "Checking APK signature..."
+          echo "=== Signature verification ==="
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
-          echo "Checking APK package metadata..."
-          if [ -f "$AAPT" ]; then
-            "$AAPT" dump badging "$APK" | head -n 5
-          else
-            echo "aapt was not found at the expected path."
-            find "$ANDROID_HOME/build-tools" -name aapt -type f
-            exit 1
-          fi
+          echo "=== Package information ==="
+          "$AAPT" dump badging "$APK" | head -n 5
+
+          echo "=== Declared permissions ==="
+          "$AAPT" dump permissions "$APK"
 
       - name: Save APK for download
         uses: actions/upload-artifact@v4
